@@ -1,0 +1,22 @@
+Title: Efficacy and Survival Outcomes of Pembrolizumab Monotherapy in Advanced Non-Small-Cell Lung Cancer
+
+Abstract:
+This clinical study reports on the long-term efficacy and safety outcomes of Pembrolizumab (Keytruda) monotherapy compared to platinum-based chemotherapy regimens in patients diagnosed with Stage IV Non-Small-Cell Lung Cancer (NSCLC). All enrolled subjects had high PD-L1 expression levels (Tumor Proportion Score >= 50%) and had received no prior systemic therapy for metastatic disease.
+
+Key Findings:
+1. Progression-Free Survival (PFS):
+   - Patients receiving Pembrolizumab achieved a median PFS of 10.3 months.
+   - Patients receiving standard combination chemotherapy achieved a median PFS of 6.0 months.
+   - This represents a statistically significant 40% reduction in the risk of disease progression or death (Hazard Ratio = 0.60, p < 0.001).
+
+2. Overall Survival (OS):
+   - The estimated 24-month OS rate was significantly higher in the Pembrolizumab cohort (48.3%) compared to the chemotherapy cohort (34.2%).
+   - The median OS was not reached in the Pembrolizumab group compared to 14.2 months in the chemotherapy group.
+
+3. Toxicity and Tolerability:
+   - Treatment-related adverse events of Grade 3 or higher occurred in 26.6% of patients in the Pembrolizumab group.
+   - Adverse events occurred in 53.3% of patients in the chemotherapy group.
+   - The most common immune-mediated adverse events associated with Pembrolizumab were hypothyroidism (10.2%) and hyperthyroidism (3.9%).
+
+Conclusions:
+First-line Pembrolizumab monotherapy provides a substantial, clinically meaningful survival advantage and a more favorable safety profile than platinum-doublet chemotherapy in patients with advanced NSCLC and high PD-L1 expression levels.

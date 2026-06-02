@@ -171,6 +171,26 @@ class RAGService:
         query_vector = await RAGService.get_embedding(query_text)
         
         if settings.MOCK_PINECONE or not MOCK_VECTOR_STORE:
+            # Dynamically populate mock vector store from database if it's empty
+            if not MOCK_VECTOR_STORE:
+                from app.db import SessionLocal
+                from app.models import DocumentChunk
+                db = SessionLocal()
+                try:
+                    db_chunks = db.query(DocumentChunk).all()
+                    for chunk in db_chunks:
+                        emb = await RAGService.get_embedding(chunk.chunk_text)
+                        vec_id = chunk.embedding_id or f"doc_{chunk.document_id}_chunk_{chunk.id}"
+                        MOCK_VECTOR_STORE[vec_id] = {
+                            "document_id": chunk.document_id,
+                            "text": chunk.chunk_text,
+                            "vector": emb
+                        }
+                except Exception as ex:
+                    logger.error(f"Error seeding mock vector store from DB: {str(ex)}")
+                finally:
+                    db.close()
+
             # Search in-memory store using Cosine Similarity
             results = []
             for vec_id, chunk_info in MOCK_VECTOR_STORE.items():

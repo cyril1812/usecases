@@ -83,5 +83,6 @@ async def execute_research_workflow(query: str) -> Dict[str, Any]:
         logger.info("LangGraph agent workflow completed successfully")
         return final_state
     except Exception as e:
-        logger.error(f"Error executing LangGraph workflow: {str(e)}")
+        import traceback
+        logger.error(f"Error executing LangGraph workflow: {str(e)}\n{traceback.format_exc()}")
         raise e

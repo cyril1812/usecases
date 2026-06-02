@@ -30,7 +30,8 @@ class ReportService:
         # Key Findings
         report.append("## Key Findings")
         for idx, paper in enumerate(papers[:3]):
-            report.append(f"- **Finding {idx+1}:** {paper.get('title')} (published in *{paper.get('journal')}*). The study highlights: {paper.get('abstract')[:200]}...")
+            abstract_text = paper.get('abstract') or paper.get('results') or ''
+            report.append(f"- **Finding {idx+1}:** {paper.get('title')} (published in *{paper.get('journal')}*). The study highlights: {abstract_text[:200]}...")
         report.append("")
 
         # Evidence Tables
