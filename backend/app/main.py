@@ -1,9 +1,12 @@
 import datetime
+import logging
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.db import engine, Base, get_db
