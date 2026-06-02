@@ -97,6 +97,18 @@ export default function Reports() {
     }
   };
 
+  const handleDownload = () => {
+    if (activeReport?.report_content) {
+      const element = document.createElement("a");
+      const file = new Blob([activeReport.report_content], {type: 'text/markdown'});
+      element.href = URL.createObjectURL(file);
+      element.download = `${activeReport.title.replace(/\s+/g, "_")}.md`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen bg-[var(--bg-main)] overflow-hidden">
       <Sidebar />
@@ -208,6 +220,13 @@ export default function Reports() {
                     >
                       <Copy className="w-3.5 h-3.5" />
                       Copy Markdown
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] hover:border-gray-500 flex items-center gap-1.5 text-[var(--text-muted)] hover:text-white"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download (.md)
                     </button>
                   </div>
                 </header>
