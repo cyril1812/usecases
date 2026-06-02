@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcare-research
+
+---
+# 1. PostgreSQL Database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_DB
+          value: healthcare_research
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: healthcare-research
+spec:
+  ports:
+  - port: 5432
+  selector:
+    app: postgres
+
+---
+# 2. Redis Cache / Broker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: healthcare-research
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: redis
+
+---
+# 3. Neo4j Graph DB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      containers:
+      - name: neo4j
+        image: neo4j:5.18-community
+        ports:
+        - containerPort: 7474
+        - containerPort: 7687
+        env:
+        - name: NEO4J_AUTH
+          value: neo4j/neo4j_password
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-service
+  namespace: healthcare-research
+spec:
+  ports:
+  - name: http
+    port: 7474
+  - name: bolt
+    port: 7687
+  selector:
+    app: neo4j
+
+---
+# 4. FastAPI Backend API
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: aura-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: postgresql://postgres:postgres@postgres-service:5432/healthcare_research
+        - name: REDIS_URL
+          value: redis://redis-service:6379/0
+        - name: NEO4J_URI
+          value: bolt://neo4j-service:7687
+        - name: NEO4J_USER
+          value: neo4j
+        - name: NEO4J_PASSWORD
+          value: neo4j_password
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: healthcare-research
+spec:
+  ports:
+  - port: 8000
+  selector:
+    app: backend
+
+---
+# 5. Celery Async Task Worker
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: aura-backend:latest
+        command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info"]
+        env:
+        - name: DATABASE_URL
+          value: postgresql://postgres:postgres@postgres-service:5432/healthcare_research
+        - name: REDIS_URL
+          value: redis://redis-service:6379/0
+        - name: NEO4J_URI
+          value: bolt://neo4j-service:7687
+        - name: NEO4J_USER
+          value: neo4j
+        - name: NEO4J_PASSWORD
+          value: neo4j_password
+
+---
+# 6. React Frontend Client
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: healthcare-research
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: aura-frontend:latest
+        ports:
+        - containerPort: 5173
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: healthcare-research
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 5173
+  selector:
+    app: frontend
