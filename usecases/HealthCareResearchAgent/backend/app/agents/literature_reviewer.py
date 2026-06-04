@@ -83,7 +83,8 @@ class LiteratureReviewer:
                 "methods": "Randomized cohort assignments, statistical correlation calculations, and median survival metrics compared across study arms.",
                 "results": abstract if len(abstract) < 300 else abstract[:300] + "...",
                 "conclusion": "The therapy shows significant improvement in primary survival endpoints compared to control arms.",
-                "limitations": "Short follow-up periods, exclusion of high-risk patient subgroups, and open-label treatment designs in selected arms."
+                "limitations": "Short follow-up periods, exclusion of high-risk patient subgroups, and open-label treatment designs in selected arms.",
+                "tldr": f"A study evaluating therapeutic efficacy and safety parameters in patients with {study_design.lower()}."
             }
 
         # ONLINE LLM
@@ -100,7 +101,8 @@ class LiteratureReviewer:
                 "- 'methods' (string)\n"
                 "- 'results' (string)\n"
                 "- 'conclusion' (string)\n"
-                "- 'limitations' (string)"
+                "- 'limitations' (string)\n"
+                "- 'tldr' (a single-sentence summary under 20 words highlighting key clinical outcomes)"
             )
             llm = ChatOpenAI(temperature=0, model=settings.LLM_MODEL, api_key=settings.OPENAI_API_KEY)
             chain = prompt | llm
@@ -123,7 +125,8 @@ class LiteratureReviewer:
                 "methods": data.get("methods", ""),
                 "results": data.get("results", ""),
                 "conclusion": data.get("conclusion", ""),
-                "limitations": data.get("limitations", "")
+                "limitations": data.get("limitations", ""),
+                "tldr": data.get("tldr", "No summary generated.")
             }
         except Exception as e:
             logger.error(f"Error reviewing abstract for pmid {pmid}: {str(e)}")
@@ -140,5 +143,6 @@ class LiteratureReviewer:
                 "methods": "Not extracted",
                 "results": abstract[:200] + "...",
                 "conclusion": "Not extracted",
-                "limitations": "Not extracted"
+                "limitations": "Not extracted",
+                "tldr": "Review fallback summary generated."
             }

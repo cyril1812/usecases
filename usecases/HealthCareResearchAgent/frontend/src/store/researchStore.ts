@@ -13,6 +13,7 @@ export interface Paper {
   methods?: string;
   conclusion?: string;
   limitations?: string;
+  tldr?: string;
 }
 
 export interface Trial {

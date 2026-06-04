@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import Sidebar from '../components/Sidebar';
 import DrugComparisonTable from '../components/DrugComparisonTable';
@@ -22,6 +23,16 @@ export default function ClinicalResearch() {
   const [condition, setCondition] = useState('');
   const [intervention, setIntervention] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state && (location.state as any).initialQuery) {
+      const q = (location.state as any).initialQuery;
+      setCondition(q);
+      setSubmitted(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Query Clinical Trials
   const { data, isLoading, refetch } = useQuery({
@@ -91,7 +102,7 @@ export default function ClinicalResearch() {
                   <input
                     type="text"
                     value={intervention}
-                    onChange={(e) => setIntervention}
+                    onChange={(e) => setIntervention(e.target.value)}
                     placeholder="e.g. Pembrolizumab"
                     className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-light)] bg-[var(--bg-sidebar)] text-sm text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)] transition-colors duration-200"
                   />

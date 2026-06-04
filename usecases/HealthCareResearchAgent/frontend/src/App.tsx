@@ -12,6 +12,7 @@ import Documents from './pages/Documents';
 import ClinicalResearch from './pages/ClinicalResearch';
 import KnowledgeGraph from './pages/KnowledgeGraph';
 import Reports from './pages/Reports';
+import Analytics from './pages/Analytics';
 import Admin from './pages/Admin';
 
 const queryClient = new QueryClient({
@@ -120,6 +121,14 @@ export default function App() {
               element={
                 <PrivateRoute>
                   <Reports />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <PrivateRoute>
+                  <Analytics />
                 </PrivateRoute>
               }
             />

@@ -17,15 +17,32 @@ from app.services.clinical_trials_service import ClinicalTrialsService
 from app.services.graph_service import GraphService
 from app.tasks import ingest_document_task
 from app.agents.graph import execute_research_workflow
-
-# Auto-create tables on startup (makes local running extremely simple!)
 from sqlalchemy import text
+
 try:
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         conn.commit()
 except Exception as ex:
     logger.warning(f"Could not create vector extension: {str(ex)}")
+
+# Dynamic migration to add is_pinned column
+try:
+    with engine.connect() as conn:
+        dialect = engine.dialect.name
+        if dialect == "postgresql":
+            conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;"))
+        else:
+            try:
+                conn.execute(text("ALTER TABLE reports ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE;"))
+            except Exception as e:
+                if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
+                    pass
+                else:
+                    raise e
+        conn.commit()
+except Exception as ex:
+    logger.warning(f"Could not run alter table migration: {str(ex)}")
 
 Base.metadata.create_all(bind=engine)
 
@@ -76,6 +93,7 @@ class ResearchHistoryItem(BaseModel):
 class ReportSummary(BaseModel):
     id: int
     title: str
+    is_pinned: bool
     created_at: datetime.datetime
     class Config:
         from_attributes = True
@@ -280,6 +298,7 @@ def get_report(id: int, current_user: User = Depends(get_current_user), db: Sess
         "id": report.id,
         "title": report.title,
         "report_content": report.report_content,
+        "is_pinned": report.is_pinned,
         "created_at": report.created_at,
         "citations": [{"source": c.source, "doi": c.doi, "url": c.url} for c in citations]
     }
@@ -287,6 +306,16 @@ def get_report(id: int, current_user: User = Depends(get_current_user), db: Sess
 @app.get(f"{settings.API_V1_STR}/reports", response_model=List[ReportSummary])
 def get_reports(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(Report).filter(Report.user_id == current_user.id).order_by(Report.created_at.desc()).all()
+
+@app.put(f"{settings.API_V1_STR}/reports/{{id}}/pin")
+def toggle_pin_report(id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    report = db.query(Report).filter(Report.id == id, Report.user_id == current_user.id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    report.is_pinned = not report.is_pinned
+    db.commit()
+    db.refresh(report)
+    return {"id": report.id, "title": report.title, "is_pinned": report.is_pinned}
 
 
 # 7. Knowledge Graph Exploration

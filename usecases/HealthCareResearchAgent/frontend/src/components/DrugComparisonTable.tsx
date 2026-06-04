@@ -1,21 +1,56 @@
 import React from 'react';
 import { useResearchStore } from '../store/researchStore';
-import { Check, Info, ShieldCheck, XCircle } from 'lucide-react';
+import { Check, Info, ShieldCheck, XCircle, FileSpreadsheet } from 'lucide-react';
 
 export default function DrugComparisonTable() {
   const { comparisons } = useResearchStore();
 
   if (comparisons.length === 0) return null;
 
+  const exportToCSV = () => {
+    if (comparisons.length === 0) return;
+    const headers = ['Drug Name', 'Class / Mechanism', 'Clinical Efficacy', 'Safety Profile', 'Adverse Side Effects'];
+    const rows = comparisons.map(item => [
+      item.drug,
+      item.class,
+      item.efficacy,
+      item.safety,
+      item.side_effects
+    ]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'AURA_Drug_Comparison_Matrix.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="glass-panel p-5 flex flex-col gap-4">
-      <div className="border-b border-[var(--border-light)] pb-3">
-        <h3 className="text-sm font-bold tracking-wide uppercase text-[var(--text-main)]">
-          Drug Intelligence Comparative Matrix
-        </h3>
-        <p className="text-xs text-[var(--text-muted)]">
-          Comparative drug safety, class, efficacy, and side effect profiles
-        </p>
+      <div className="border-b border-[var(--border-light)] pb-3 flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-bold tracking-wide uppercase text-[var(--text-main)]">
+            Drug Intelligence Comparative Matrix
+          </h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            Comparative drug safety, class, efficacy, and side effect profiles
+          </p>
+        </div>
+        <button
+          onClick={exportToCSV}
+          className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] hover:border-gray-500 hover:text-white flex items-center gap-1.5 transition-all text-[var(--text-muted)] shrink-0 shadow-sm"
+          title="Export comparison data to CSV"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          Export CSV
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-sidebar)]">

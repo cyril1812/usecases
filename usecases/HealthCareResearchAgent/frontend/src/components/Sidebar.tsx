@@ -10,7 +10,8 @@ import {
   ShieldAlert, 
   LogOut, 
   User as UserIcon,
-  FlaskConical
+  FlaskConical,
+  BarChart3
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -22,6 +23,7 @@ export default function Sidebar() {
     { name: 'Research Chat', path: '/workspace', icon: Search },
     { name: 'Document Library', path: '/documents', icon: FileText },
     { name: 'Clinical Trials', path: '/clinical', icon: Activity },
+    { name: 'Clinical Analytics', path: '/analytics', icon: BarChart3 },
     { name: 'Knowledge Graph', path: '/graph', icon: GitBranch },
     { name: 'Research Reports', path: '/reports', icon: BookOpen },
   ];

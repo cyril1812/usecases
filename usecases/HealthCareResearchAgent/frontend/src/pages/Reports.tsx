@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import Sidebar from '../components/Sidebar';
-import { BookOpen, Calendar, ChevronRight, Copy, Download, Loader2, Plus, Sparkles } from 'lucide-react';
+import { BookOpen, Calendar, ChevronRight, Copy, Download, Loader2, Plus, Sparkles, Pin } from 'lucide-react';
 
 interface ReportInfo {
   id: number;
   title: string;
+  is_pinned: boolean;
   created_at: string;
 }
 
@@ -20,6 +22,7 @@ interface ReportDetails {
   id: number;
   title: string;
   report_content: string;
+  is_pinned: boolean;
   created_at: string;
   citations: Citation[];
 }
@@ -27,7 +30,9 @@ interface ReportDetails {
 export default function Reports() {
   const { token } = useAuthStore();
   const queryClient = useQueryClient();
-  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const location = useLocation();
+  const initialReportId = (location.state as { selectedReportId?: number })?.selectedReportId || null;
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(initialReportId);
   const [newReportQuery, setNewReportQuery] = useState('');
   const [generating, setGenerating] = useState(false);
 
@@ -80,6 +85,24 @@ export default function Reports() {
     },
     onError: () => {
       setGenerating(false);
+    }
+  });
+
+  // Pin/Unpin Report Mutation
+  const pinMutation = useMutation({
+    mutationFn: async (reportId: number) => {
+      const res = await fetch(`/api/reports/${reportId}/pin`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) throw new Error('Pin toggle failed');
+      return res.json() as Promise<{ id: number; title: string; is_pinned: boolean }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reportsList'] });
+      queryClient.invalidateQueries({ queryKey: ['reportDetails', selectedReportId] });
     }
   });
 
@@ -177,7 +200,8 @@ export default function Reports() {
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-bold truncate leading-snug">
+                      <h4 className="text-xs font-bold truncate leading-snug flex items-center gap-1.5">
+                        {rep.is_pinned && <Pin className="w-3.5 h-3.5 text-[var(--primary)] fill-[var(--primary)] shrink-0" />}
                         {rep.title}
                       </h4>
                       <span className="text-[10px] text-[var(--text-dim)] flex items-center gap-1.5 mt-1.5">
@@ -214,6 +238,17 @@ export default function Reports() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => pinMutation.mutate(activeReport.id)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5 transition-all duration-150 ${
+                        activeReport.is_pinned
+                          ? 'border-[var(--primary)] bg-[var(--primary-glow)] text-[var(--primary)] hover:bg-[var(--primary)]/20'
+                          : 'border-[var(--border-light)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-white hover:border-gray-500'
+                      }`}
+                    >
+                      <Pin className={`w-3.5 h-3.5 ${activeReport.is_pinned ? 'fill-[var(--primary)]' : ''}`} />
+                      {activeReport.is_pinned ? 'Pinned' : 'Pin Report'}
+                    </button>
                     <button
                       onClick={handleCopy}
                       className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] hover:border-gray-500 flex items-center gap-1.5 text-[var(--text-muted)] hover:text-white"

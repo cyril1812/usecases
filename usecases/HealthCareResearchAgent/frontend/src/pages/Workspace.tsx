@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useResearchStore } from '../store/researchStore';
 import { useAuthStore } from '../store/authStore';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import AgentWorkflowTracker from '../components/AgentWorkflowTracker';
 import { 
@@ -37,6 +38,27 @@ export default function Workspace() {
 
   const [inputVal, setInputVal] = useState('');
   const [activeTab, setActiveTab] = useState<'timeline' | 'papers' | 'rag'>('timeline');
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state && (location.state as any).initialQuery) {
+      const q = (location.state as any).initialQuery;
+      setInputVal(q);
+      triggerQuery(q);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const agentLogs: Record<string, string> = {
+    planner: "Formulating search strategy, mapping disease terms and drug classifications...",
+    pubmed_searcher: "Interrogating PubMed database for matching clinical abstracts...",
+    literature_reviewer: "Analyzing literature text, extracting outcomes, and generating TL;DR summaries...",
+    clinical_trial: "Querying ClinicalTrials.gov registries and extracting cohort profiles...",
+    rag_retriever: "Searching vector database for matching chunks in uploaded documentation...",
+    evidence_ranker: "Grading and sorting evidence by study quality, design, and cohort size...",
+    drug_intelligence: "Synthesizing drug intelligence comparison matrix (efficacy, safety, side-effects)...",
+    report_generator: "Assembling final research report and validation matrices...",
+  };
 
   // Load research history
   const { data: historyItems = [], refetch: refetchHistory } = useQuery({
@@ -191,13 +213,68 @@ export default function Workspace() {
               </div>
             ))}
             {agentStatus === 'running' && (
-              <div className="flex gap-4 self-start max-w-3xl">
-                <div className="w-8 h-8 rounded-lg bg-[var(--primary-glow)] text-[var(--primary)] border border-[var(--border-glow)] flex items-center justify-center text-xs font-bold animate-pulse">
+              <div className="flex gap-4 self-start w-full max-w-2xl slide-in">
+                <div className="w-8 h-8 rounded-lg bg-[var(--primary-glow)] text-[var(--primary)] border border-[var(--border-glow)] flex items-center justify-center text-xs font-bold shrink-0">
                   AI
                 </div>
-                <div className="p-4 rounded-2xl text-sm leading-relaxed bg-[var(--bg-card)] border border-[var(--border-light)] text-[var(--text-main)] rounded-tl-none animate-pulse flex items-center gap-3">
-                  <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-ping" />
-                  Agent team conducting deep clinical search, reviewing literature summaries, and compiling clinical outcomes matrix...
+                <div className="flex-1 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-light)] text-sm rounded-tl-none shadow-xl flex flex-col gap-3">
+                  <div className="flex items-center gap-2 border-b border-[var(--border-light)] pb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)] animate-ping shrink-0" />
+                    <span className="font-bold text-white text-xs uppercase tracking-wider">Agent Team Collaboration Stream</span>
+                  </div>
+                  <div className="flex flex-col gap-2 font-mono text-[11px] leading-relaxed">
+                    {[
+                      'planner', 
+                      'pubmed_searcher', 
+                      'literature_reviewer', 
+                      'clinical_trial', 
+                      'rag_retriever', 
+                      'evidence_ranker', 
+                      'drug_intelligence', 
+                      'report_generator'
+                    ].map((agentKey) => {
+                      const sequence = [
+                        'planner', 
+                        'pubmed_searcher', 
+                        'literature_reviewer', 
+                        'clinical_trial', 
+                        'rag_retriever', 
+                        'evidence_ranker', 
+                        'drug_intelligence', 
+                        'report_generator'
+                      ];
+                      const activeIdx = sequence.indexOf(activeAgent || 'planner');
+                      const currentIdx = sequence.indexOf(agentKey);
+                      
+                      let status: 'completed' | 'running' | 'queued' = 'queued';
+                      if (currentIdx < activeIdx) status = 'completed';
+                      else if (currentIdx === activeIdx) status = 'running';
+
+                      const agentName = agentKey.toUpperCase().replace('_', ' ');
+
+                      return (
+                        <div key={agentKey} className={`flex items-start gap-2 transition-all duration-300 ${
+                          status === 'running' ? 'text-white' : status === 'completed' ? 'text-[var(--text-muted)]' : 'text-[var(--text-dim)]'
+                        }`}>
+                          <span className="shrink-0 font-bold text-xs select-none">
+                            {status === 'completed' ? (
+                              <span className="text-emerald-400">✓</span>
+                            ) : status === 'running' ? (
+                              <span className="text-[var(--primary)] animate-pulse">▶</span>
+                            ) : (
+                              <span className="text-white/10">○</span>
+                            )}
+                          </span>
+                          <div>
+                            <span className={`font-bold ${status === 'running' ? 'text-[var(--primary)]' : ''}`}>
+                              [{agentName}]
+                            </span>{' '}
+                            <span>{agentLogs[agentKey]}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -327,6 +404,13 @@ export default function Workspace() {
                       <div className="border-t border-[var(--border-light)] pt-2 mt-1 flex flex-col gap-1 text-[11px]">
                         <span className="text-[10px] uppercase font-bold text-[var(--primary)]">{paper.study_design}</span>
                         <span className="text-[var(--text-muted)]">**N = {paper.sample_size}**</span>
+                        
+                        {paper.tldr && (
+                          <div className="bg-[var(--primary-glow)]/40 border border-[var(--border-glow)] p-2.5 rounded-lg text-[var(--text-main)] text-[10.5px] leading-relaxed italic my-1 font-medium">
+                            <span className="text-[var(--primary)] font-bold not-italic">TL;DR:</span> {paper.tldr}
+                          </div>
+                        )}
+                        
                         <p className="text-[var(--text-muted)] line-clamp-3 leading-relaxed">
                           **Outcomes:** {paper.conclusion}
                         </p>

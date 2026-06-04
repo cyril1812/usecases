@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 import { 
   RefreshCw, 
   ZoomIn, 
@@ -32,6 +33,7 @@ interface Edge {
 export default function GraphVisualizer() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { token } = useAuthStore();
+  const navigate = useNavigate();
   
   // Basic Canvas state
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -381,6 +383,26 @@ export default function GraphVisualizer() {
     setIsDragging(false);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvasCoords = getCanvasCoords(e.clientX, e.clientY);
+    const activeNodes = nodes.filter(n => visibleTypes.has(n.type.toLowerCase()));
+    const clicked = activeNodes.find((node) => {
+      if (node.x === undefined || node.y === undefined) return false;
+      const dx = node.x - canvasCoords.x;
+      const dy = node.y - canvasCoords.y;
+      return Math.sqrt(dx * dx + dy * dy) < 25;
+    });
+
+    if (clicked) {
+      navigator.clipboard.writeText(clicked.label);
+      if (clicked.type.toLowerCase() === 'disease' || clicked.type.toLowerCase() === 'outcome') {
+        navigate('/clinical', { state: { initialQuery: clicked.label } });
+      } else {
+        navigate('/workspace', { state: { initialQuery: clicked.label } });
+      }
+    }
+  };
+
   // Center view camera onto a specific node
   const focusOnNode = (node: Node) => {
     if (node.x === undefined || node.y === undefined) return;
@@ -628,6 +650,7 @@ export default function GraphVisualizer() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
             className="w-full h-full cursor-grab active:cursor-grabbing"
           />
 
@@ -844,6 +867,21 @@ export default function GraphVisualizer() {
                 className="text-[var(--text-dim)] hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/workspace', { state: { initialQuery: selectedNode.label } })}
+                className="flex-1 py-1.5 rounded-lg bg-[var(--primary-glow)] border border-[var(--border-glow)] hover:bg-[var(--primary)]/20 text-xs font-bold text-[var(--primary)] transition-all flex items-center justify-center gap-1.5"
+              >
+                Search Chat
+              </button>
+              <button
+                onClick={() => navigate('/clinical', { state: { initialQuery: selectedNode.label } })}
+                className="flex-1 py-1.5 rounded-lg bg-white/5 border border-[var(--border-light)] hover:border-gray-500 text-xs font-bold text-[var(--text-muted)] hover:text-white transition-all flex items-center justify-center gap-1.5"
+              >
+                Search Trials
               </button>
             </div>
 
