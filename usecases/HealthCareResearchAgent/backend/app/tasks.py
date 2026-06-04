@@ -50,14 +50,15 @@ def ingest_document_task(document_id: int, file_content_hex: str, filename: str)
         logger.info(f"Extracted {len(chunks)} chunks from {filename}")
 
         # Generate embeddings and index chunks (Pinecone or Local Fallback)
-        vector_ids = run_async(RAGService.index_chunks(document_id, chunks))
+        vector_results = run_async(RAGService.index_chunks(document_id, chunks))
 
         # Save chunk text index to PostgreSQL database
-        for idx, (chunk_text, vector_id) in enumerate(zip(chunks, vector_ids)):
+        for idx, (chunk_text, (vector_id, emb)) in enumerate(zip(chunks, vector_results)):
             db_chunk = DocumentChunk(
                 document_id=document_id,
                 chunk_text=chunk_text,
-                embedding_id=vector_id
+                embedding_id=vector_id,
+                embedding=emb
             )
             db.add(db_chunk)
 

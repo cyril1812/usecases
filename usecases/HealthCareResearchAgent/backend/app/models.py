@@ -1,6 +1,7 @@
 import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from app.db import Base
 
 class User(Base):
@@ -39,6 +40,7 @@ class DocumentChunk(Base):
     document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     chunk_text = Column(Text, nullable=False)
     embedding_id = Column(String(100), nullable=True)  # Pinecone vector ID
+    embedding = Column(Vector(3072), nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 

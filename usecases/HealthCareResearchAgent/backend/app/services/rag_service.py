@@ -111,10 +111,9 @@ class RAGService:
             return vec
 
     @staticmethod
-    async def index_chunks(document_id: int, chunks: List[str]) -> List[str]:
-        """Store chunk vectors in Pinecone (or local fallback). Returns list of vector IDs."""
-        global mock_id_counter
-        vector_ids = []
+    async def index_chunks(document_id: int, chunks: List[str]) -> List[Tuple[str, List[float]]]:
+        """Store chunk vectors in Pinecone (or local fallback). Returns list of (vector_id, embedding_vector) tuples."""
+        vector_results = []
         
         embeddings = []
         for chunk in chunks:
@@ -122,15 +121,10 @@ class RAGService:
             embeddings.append(emb)
 
         if settings.MOCK_PINECONE:
-            # Index locally in-memory
+            # Index locally (no Pinecone)
             for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
                 vector_id = f"doc_{document_id}_chunk_{i}"
-                MOCK_VECTOR_STORE[vector_id] = {
-                    "document_id": document_id,
-                    "text": chunk,
-                    "vector": emb
-                }
-                vector_ids.append(vector_id)
+                vector_results.append((vector_id, emb))
             logger.info(f"Indexed {len(chunks)} chunks locally for document {document_id}")
         else:
             try:
@@ -146,7 +140,7 @@ class RAGService:
                         emb, 
                         {"document_id": document_id, "text": chunk[:500]} # Metadatas
                     ))
-                    vector_ids.append(vector_id)
+                    vector_results.append((vector_id, emb))
                 
                 # Batch upsert
                 index.upsert(vectors=upsert_data)
@@ -156,55 +150,43 @@ class RAGService:
                 # Fallback to local
                 for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
                     vector_id = f"doc_{document_id}_chunk_{i}"
-                    MOCK_VECTOR_STORE[vector_id] = {
-                        "document_id": document_id,
-                        "text": chunk,
-                        "vector": emb
-                    }
-                    vector_ids.append(vector_id)
+                    vector_results.append((vector_id, emb))
                     
-        return vector_ids
+        return vector_results
 
     @staticmethod
     async def query_similarity(query_text: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Perform semantic search for query_text. Returns matched chunks with scores."""
         query_vector = await RAGService.get_embedding(query_text)
         
-        if settings.MOCK_PINECONE or not MOCK_VECTOR_STORE:
-            # Dynamically populate mock vector store from database if it's empty
-            if not MOCK_VECTOR_STORE:
-                from app.db import SessionLocal
-                from app.models import DocumentChunk
-                db = SessionLocal()
-                try:
-                    db_chunks = db.query(DocumentChunk).all()
-                    for chunk in db_chunks:
-                        emb = await RAGService.get_embedding(chunk.chunk_text)
-                        vec_id = chunk.embedding_id or f"doc_{chunk.document_id}_chunk_{chunk.id}"
-                        MOCK_VECTOR_STORE[vec_id] = {
-                            "document_id": chunk.document_id,
-                            "text": chunk.chunk_text,
-                            "vector": emb
-                        }
-                except Exception as ex:
-                    logger.error(f"Error seeding mock vector store from DB: {str(ex)}")
-                finally:
-                    db.close()
-
-            # Search in-memory store using Cosine Similarity
-            results = []
-            for vec_id, chunk_info in MOCK_VECTOR_STORE.items():
-                dot_product = sum(q * c for q, c in zip(query_vector, chunk_info["vector"]))
-                # Since vectors are normalized, dot product is cosine similarity
-                results.append({
-                    "id": vec_id,
-                    "document_id": chunk_info["document_id"],
-                    "text": chunk_info["text"],
-                    "score": dot_product
-                })
-            # Sort by score descending
-            results.sort(key=lambda x: x["score"], reverse=True)
-            return results[:top_k]
+        if settings.MOCK_PINECONE:
+            # Search database using pgvector
+            from app.db import SessionLocal
+            from app.models import DocumentChunk
+            db = SessionLocal()
+            try:
+                results_raw = db.query(
+                    DocumentChunk,
+                    (1.0 - DocumentChunk.embedding.cosine_distance(query_vector)).label("score")
+                ).order_by(
+                    DocumentChunk.embedding.cosine_distance(query_vector)
+                ).limit(top_k).all()
+                
+                results = []
+                for chunk, score in results_raw:
+                    score_val = float(score) if score is not None else 0.0
+                    results.append({
+                        "id": chunk.embedding_id or f"doc_{chunk.document_id}_chunk_{chunk.id}",
+                        "document_id": chunk.document_id,
+                        "text": chunk.chunk_text,
+                        "score": score_val
+                    })
+                return results
+            except Exception as e:
+                logger.error(f"Error querying pgvector in database: {str(e)}")
+                return []
+            finally:
+                db.close()
         else:
             try:
                 from pinecone import Pinecone
@@ -228,15 +210,30 @@ class RAGService:
                 return results
             except Exception as e:
                 logger.error(f"Pinecone query error: {str(e)}. Falling back to local search.")
-                # Fallback to local
-                results = []
-                for vec_id, chunk_info in MOCK_VECTOR_STORE.items():
-                    dot_product = sum(q * c for q, c in zip(query_vector, chunk_info["vector"]))
-                    results.append({
-                        "id": vec_id,
-                        "document_id": chunk_info["document_id"],
-                        "text": chunk_info["text"],
-                        "score": dot_product
-                    })
-                results.sort(key=lambda x: x["score"], reverse=True)
-                return results[:top_k]
+                # Fallback to local pgvector in postgres
+                from app.db import SessionLocal
+                from app.models import DocumentChunk
+                db = SessionLocal()
+                try:
+                    results_raw = db.query(
+                        DocumentChunk,
+                        (1.0 - DocumentChunk.embedding.cosine_distance(query_vector)).label("score")
+                    ).order_by(
+                        DocumentChunk.embedding.cosine_distance(query_vector)
+                    ).limit(top_k).all()
+                    
+                    results = []
+                    for chunk, score in results_raw:
+                        score_val = float(score) if score is not None else 0.0
+                        results.append({
+                            "id": chunk.embedding_id or f"doc_{chunk.document_id}_chunk_{chunk.id}",
+                            "document_id": chunk.document_id,
+                            "text": chunk.chunk_text,
+                            "score": score_val
+                        })
+                    return results
+                except Exception as ex:
+                    logger.error(f"Error querying pgvector fallback in database: {str(ex)}")
+                    return []
+                finally:
+                    db.close()

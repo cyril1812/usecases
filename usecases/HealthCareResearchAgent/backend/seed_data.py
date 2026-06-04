@@ -51,11 +51,15 @@ def seed_database():
                 "Pembrolizumab (Keytruda) is a humanized IgG4 monoclonal antibody that binds to the PD-1 receptor, blocking its interaction with PD-L1 and PD-L2. In clinical trials, Pembrolizumab monotherapy demonstrated exceptional progression-free survival (PFS) of 10.3 months compared to 6.0 months with chemotherapy in patients with advanced non-small-cell lung cancer (NSCLC) having high PD-L1 expression (TPS >= 50%).",
                 "The neoadjuvant combination of Pembrolizumab plus Paclitaxel has shown outstanding pathological complete response (pCR) rates in triple-negative breast cancer (TNBC) patients. Paclitaxel works by stabilizing microtubules, thereby interfering with mitotic spindle assembly and cell division. Together, the chemo-immunotherapy synergy creates an immunogenic environment, enhancing tumor antigen presentation."
             ]
+            import asyncio
+            from app.services.rag_service import RAGService
             for idx, text in enumerate(chunks1):
+                emb = asyncio.run(RAGService.get_embedding(text))
                 chunk = DocumentChunk(
                     document_id=doc1.id,
                     chunk_text=text,
-                    embedding_id=f"doc_{doc1.id}_chunk_{idx}"
+                    embedding_id=f"doc_{doc1.id}_chunk_{idx}",
+                    embedding=emb
                 )
                 db.add(chunk)
                 
@@ -76,11 +80,15 @@ def seed_database():
                 "Allogeneic CRISPR-Cas9 edited CAR-T cells (specifically CTX110) targeting the CD19 antigen represent a milestone in treating relapsed or refractory B-cell malignancies. CTX110 cells are gene-edited to prevent graft-versus-host disease (GvHD) and to reduce immune rejection by editing out the TCR and HLA class I expression pathways.",
                 "In vivo CRISPR editing using NTLA-2002 target kallikrein genes in patients suffering from hereditary angioedema. NTLA-2002 has demonstrated an average 87% reduction in plasma kallikrein after a single dose, proving high target specificity and minimal off-target effects. This indicates gene editing represents a durable one-time cure."
             ]
+            import asyncio
+            from app.services.rag_service import RAGService
             for idx, text in enumerate(chunks2):
+                emb = asyncio.run(RAGService.get_embedding(text))
                 chunk = DocumentChunk(
                     document_id=doc2.id,
                     chunk_text=text,
-                    embedding_id=f"doc_{doc2.id}_chunk_{idx}"
+                    embedding_id=f"doc_{doc2.id}_chunk_{idx}",
+                    embedding=emb
                 )
                 db.add(chunk)
 

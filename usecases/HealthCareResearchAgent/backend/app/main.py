@@ -19,6 +19,14 @@ from app.tasks import ingest_document_task
 from app.agents.graph import execute_research_workflow
 
 # Auto-create tables on startup (makes local running extremely simple!)
+from sqlalchemy import text
+try:
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        conn.commit()
+except Exception as ex:
+    logger.warning(f"Could not create vector extension: {str(ex)}")
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

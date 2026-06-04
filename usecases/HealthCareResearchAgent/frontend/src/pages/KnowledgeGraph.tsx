@@ -17,7 +17,7 @@ export default function KnowledgeGraph() {
           </p>
         </header>
 
-        <div className="max-w-5xl">
+        <div className="w-full max-w-7xl">
           <GraphVisualizer />
         </div>
       </main>
